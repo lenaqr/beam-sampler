@@ -3,6 +3,55 @@ import numpy as np
 def categorical(p):
     return p.cumsum().searchsorted(np.random.uniform(0, p.sum()))
 
+class LearningHMM(object):
+    def __init__(self, t_generator, e_generator, hmm):
+        self.t_generator = t_generator
+        self.e_generator = e_generator
+        self.hmm = hmm
+
+    def initialize_with_states(self, states):
+        self.hmm.states = states
+        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
+        self.sample_params()
+
+    def initialize_with_params(self, t, e):
+        self.hmm.t = self.t_generator.params = t
+        self.hmm.e = self.e_generator.params = e
+        self.hmm.sample_states_exact()
+        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
+
+    def sample_gibbs(self, iters=1):
+        for _ in range(iters):
+            self.sample_states()
+            self.sample_params()
+
+    def sample_states(self):
+        t_counts = self.t_generator.counts
+        e_counts = self.e_generator.counts
+        self.hmm.add_counts(t_counts, e_counts, -1)
+        self.hmm.sample_states_exact()
+        self.hmm.add_counts(t_counts, e_counts)
+
+    def sample_params(self):
+        self.t_generator.sample_params()
+        self.e_generator.sample_params()
+        self.hmm.t = self.t_generator.params
+        self.hmm.e = self.e_generator.params
+
+class DirMultMatrix(object):
+    def __init__(self, alpha, counts=None, params=None):
+        self.alpha = alpha
+        if counts is None:
+            counts = np.zeros_like(alpha)
+        self.counts = counts
+        if params is None:
+            params = np.empty_like(alpha)
+        self.params = params
+
+    def sample_params(self):
+        self.params = np.apply_along_axis(
+            np.random.dirichlet, 1, self.alpha + self.counts)
+
 class HMM(object):
     def __init__(self, t, e, obs, start_state, end_state=None, states=None):
         """An HMM that explains a sequence of observations.
@@ -29,6 +78,18 @@ class HMM(object):
         if states is None:
             states = np.empty(N, dtype=int)
         self.states = states
+
+    def sample_forward(self, length):
+        """Sample a random observation sequence from the model."""
+
+        states = []
+        obs = []
+        state = self.start_state
+        for _ in range(length):
+            state = categorical(self.t[state, :])
+            states.append(state)
+            obs.append(categorical(self.e[state, :]))
+        return states, obs
 
     def sample_states_exact(self):
         """Sample a state sequence using exact forward-backward sampling."""
@@ -94,3 +155,21 @@ class HMM(object):
                 factor = factor * self.t[:, state]
             state = categorical(factor)
             self.states[n] = state
+
+    def add_counts(self, t_counts=None, e_counts=None, incr=1):
+        """Count the state transitions and emissions in the data."""
+
+        if t_counts is None:
+            t_counts = np.zeros_like(self.t)
+        if e_counts is None:
+            e_counts = np.zeros_like(self.e)
+
+        np.add.at(t_counts, (self.states[:-1], self.states[1:]), incr)
+        np.add.at(t_counts, (self.start_state, self.states[0]), incr)
+        if self.end_state is not None:
+            np.add.at(t_counts, (self.states[-1], self.end_state), incr)
+
+        # TODO: handle missing observations
+        np.add.at(e_counts, (self.states, self.obs), incr)
+
+        return t_counts, e_counts
