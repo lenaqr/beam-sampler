@@ -3,55 +3,6 @@ import numpy as np
 def categorical(p):
     return p.cumsum().searchsorted(np.random.uniform(0, p.sum()))
 
-class LearningHMM(object):
-    def __init__(self, t_generator, e_generator, hmm):
-        self.t_generator = t_generator
-        self.e_generator = e_generator
-        self.hmm = hmm
-
-    def initialize_with_states(self, states):
-        self.hmm.states = states
-        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
-        self.sample_params()
-
-    def initialize_with_params(self, t, e):
-        self.hmm.t = self.t_generator.params = t
-        self.hmm.e = self.e_generator.params = e
-        self.hmm.sample_states_exact()
-        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
-
-    def sample_gibbs(self, iters=1):
-        for _ in range(iters):
-            self.sample_states()
-            self.sample_params()
-
-    def sample_states(self):
-        t_counts = self.t_generator.counts
-        e_counts = self.e_generator.counts
-        self.hmm.add_counts(t_counts, e_counts, -1)
-        self.hmm.sample_states_exact()
-        self.hmm.add_counts(t_counts, e_counts)
-
-    def sample_params(self):
-        self.t_generator.sample_params()
-        self.e_generator.sample_params()
-        self.hmm.t = self.t_generator.params
-        self.hmm.e = self.e_generator.params
-
-class DirMultMatrix(object):
-    def __init__(self, alpha, counts=None, params=None):
-        self.alpha = alpha
-        if counts is None:
-            counts = np.zeros_like(alpha)
-        self.counts = counts
-        if params is None:
-            params = np.empty_like(alpha)
-        self.params = params
-
-    def sample_params(self):
-        self.params = np.apply_along_axis(
-            np.random.dirichlet, 1, self.alpha + self.counts)
-
 class HMM(object):
     def __init__(self, t, e, obs, start_state, end_state=None, states=None):
         """An HMM that explains a sequence of observations.
@@ -173,3 +124,77 @@ class HMM(object):
         np.add.at(e_counts, (self.states, self.obs), incr)
 
         return t_counts, e_counts
+
+class LearningHMM(object):
+    def __init__(self, t_generator, e_generator, hmm):
+        """An HMM with a prior over the transition and emission parameters,
+        which can be learned from data.
+
+        t_generator: the transition prior, an instance of DirMultMatrix
+        e_generator: the emission prior, an instance of DirMultMatrix
+        hmm: the initial HMM, an instance of HMM
+
+        """
+        self.t_generator = t_generator
+        self.e_generator = e_generator
+        self.hmm = hmm
+
+    def initialize_with_states(self, states):
+        self.hmm.states = states
+        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
+        self.sample_params()
+
+    def initialize_with_params(self, t, e):
+        self.hmm.t = self.t_generator.params = t
+        self.hmm.e = self.e_generator.params = e
+        self.hmm.sample_states_exact()
+        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
+
+    def sample_gibbs(self, iters=1, sample_states_method=None):
+        for _ in range(iters):
+            self.sample_states(sample_states_method)
+            self.sample_params()
+
+    def sample_states(self, sample_states_method=None):
+        t_counts = self.t_generator.counts
+        e_counts = self.e_generator.counts
+        self.hmm.add_counts(t_counts, e_counts, -1)
+        if sample_states_method is not None:
+            sample_states_method()
+        else:
+            self.hmm.sample_states_exact()
+        self.hmm.add_counts(t_counts, e_counts)
+
+    def sample_states_slice(self):
+        t_counts = self.t_generator.counts
+        e_counts = self.e_generator.counts
+        self.hmm.add_counts(t_counts, e_counts, -1)
+        self.hmm.sample_states_slice()
+        self.hmm.add_counts(t_counts, e_counts)
+
+    def sample_params(self):
+        self.t_generator.sample_params()
+        self.e_generator.sample_params()
+        self.hmm.t = self.t_generator.params
+        self.hmm.e = self.e_generator.params
+
+class DirMultMatrix(object):
+    def __init__(self, alpha, counts=None, params=None):
+        """A matrix with a Dirichlet prior on each row.
+
+        alpha: K-by-M matrix of Dirichlet hyperparameters (pseudocounts)
+        counts: K-by-M matrix of observed counts
+        params: K-by-M matrix of sampled parameters
+        """
+        self.alpha = alpha
+        if counts is None:
+            counts = np.zeros_like(alpha)
+        self.counts = counts
+        if params is None:
+            params = np.empty_like(alpha)
+        self.params = params
+
+    def sample_params(self):
+        self.params = np.apply_along_axis(
+            np.random.dirichlet, 1, self.alpha + self.counts)
+
