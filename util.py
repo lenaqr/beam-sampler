@@ -51,5 +51,5 @@ def cyclic_hmm_dirichlet():
     h = cyclic_hmm()
     t_generator = DirMultMatrix(np.full_like(h.t, 0.1))
     e_generator = DirMultMatrix(np.full_like(h.e, 0.95))
-    lh = LearningHMM(t_generator, e_generator, h)
-    return lh
+    dh = LearningHMM(t_generator, e_generator, h)
+    return dh

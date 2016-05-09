@@ -49,7 +49,7 @@ def test_cyclic_hmm_dirichlet_convergence():
         dh.sample_gibbs(50)
     assert align_sequences(states, h.states) > 700
 
-def test_cyclic_hmm_dirslice_convergence():
+def test_cyclic_hmm_dir_slice_convergence():
     dh = cyclic_hmm_dirichlet()
     h = dh.hmm
     states = np.array(h.states)
