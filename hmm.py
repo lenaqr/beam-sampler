@@ -107,23 +107,16 @@ class HMM(object):
             state = categorical(factor)
             self.states[n] = state
 
-    def add_counts(self, t_counts=None, e_counts=None, incr=1):
+    def add_counts(self, t_generator, e_generator, incr=1):
         """Count the state transitions and emissions in the data."""
 
-        if t_counts is None:
-            t_counts = np.zeros_like(self.t)
-        if e_counts is None:
-            e_counts = np.zeros_like(self.e)
-
-        np.add.at(t_counts, (self.states[:-1], self.states[1:]), incr)
-        np.add.at(t_counts, (self.start_state, self.states[0]), incr)
+        t_generator.incorporate_pairs(self.states[:-1], self.states[1:], incr)
+        t_generator.incorporate_pairs(self.start_state, self.states[0], incr)
         if self.end_state is not None:
-            np.add.at(t_counts, (self.states[-1], self.end_state), incr)
+            t_generator.incorporate_pairs(self.states[-1], self.end_state, incr)
 
         # TODO: handle missing observations
-        np.add.at(e_counts, (self.states, self.obs), incr)
-
-        return t_counts, e_counts
+        e_generator.incorporate_pairs(self.states, self.obs, incr)
 
 class LearningHMM(object):
     def __init__(self, t_generator, e_generator, hmm):
@@ -141,14 +134,14 @@ class LearningHMM(object):
 
     def initialize_with_states(self, states):
         self.hmm.states = states
-        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
+        self.hmm.add_counts(self.t_generator, self.e_generator)
         self.sample_params()
 
     def initialize_with_params(self, t, e):
         self.hmm.t = self.t_generator.params = t
         self.hmm.e = self.e_generator.params = e
         self.hmm.sample_states_exact()
-        self.hmm.add_counts(self.t_generator.counts, self.e_generator.counts)
+        self.hmm.add_counts(self.t_generator, self.e_generator)
 
     def sample_gibbs(self, iters=1, sample_states_method=None):
         for _ in range(iters):
@@ -156,14 +149,12 @@ class LearningHMM(object):
             self.sample_params()
 
     def sample_states(self, sample_states_method=None):
-        t_counts = self.t_generator.counts
-        e_counts = self.e_generator.counts
-        self.hmm.add_counts(t_counts, e_counts, -1)
+        self.hmm.add_counts(self.t_generator, self.e_generator, -1)
         if sample_states_method is not None:
             sample_states_method()
         else:
             self.hmm.sample_states_exact()
-        self.hmm.add_counts(t_counts, e_counts)
+        self.hmm.add_counts(self.t_generator, self.e_generator)
 
     def sample_states_slice(self):
         t_counts = self.t_generator.counts
@@ -199,3 +190,5 @@ class DirMultMatrix(object):
         self.params = np.apply_along_axis(
             np.random.dirichlet, 1, self.alpha + self.counts)
 
+    def incorporate_pairs(self, x, y, incr=1):
+        np.add.at(self.counts, (x, y), incr)
