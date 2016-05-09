@@ -185,6 +185,7 @@ class DirMultMatrix(object):
         alpha: K-by-M matrix of Dirichlet hyperparameters (pseudocounts)
         counts: K-by-M matrix of observed counts
         params: K-by-M matrix of sampled parameters
+
         """
         self.alpha = alpha
         if counts is None:
