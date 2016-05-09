@@ -110,13 +110,13 @@ class HMM(object):
     def add_counts(self, t_generator, e_generator, incr=1):
         """Count the state transitions and emissions in the data."""
 
-        t_generator.incorporate_pairs(self.states[:-1], self.states[1:], incr)
-        t_generator.incorporate_pairs(self.start_state, self.states[0], incr)
+        t_generator.incorporate(self.states[:-1], self.states[1:], incr)
+        t_generator.incorporate(self.start_state, self.states[0], incr)
         if self.end_state is not None:
-            t_generator.incorporate_pairs(self.states[-1], self.end_state, incr)
+            t_generator.incorporate(self.states[-1], self.end_state, incr)
 
         # TODO: handle missing observations
-        e_generator.incorporate_pairs(self.states, self.obs, incr)
+        e_generator.incorporate(self.states, self.obs, incr)
 
 class LearningHMM(object):
     def __init__(self, t_generator, e_generator, hmm):
@@ -190,5 +190,5 @@ class DirMultMatrix(object):
         self.params = np.apply_along_axis(
             np.random.dirichlet, 1, self.alpha + self.counts)
 
-    def incorporate_pairs(self, x, y, incr=1):
+    def incorporate(self, x, y, incr=1):
         np.add.at(self.counts, (x, y), incr)
