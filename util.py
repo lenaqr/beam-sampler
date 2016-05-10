@@ -4,7 +4,7 @@ import numpy as np
 import scipy.stats
 import pytest
 
-from hmm import HMM, LearningHMM, DirMultMatrix
+from hmm import HMM, LearningHMM, HDPHMM, DirMultMatrix, HDPMatrix
 
 def check_marginals(samples, marginals):
     n_samples = len(samples)
@@ -53,3 +53,10 @@ def cyclic_hmm_dirichlet():
     e_generator = DirMultMatrix(0.95, h.e) # NB: this is not actually specified in the paper
     dh = LearningHMM(t_generator, e_generator, h)
     return dh
+
+def cyclic_hmm_hdp():
+    h = cyclic_hmm()
+    t_generator = HDPMatrix(3.8, 0.4, np.zeros(1), np.zeros((1, 1)))
+    e_generator = DirMultMatrix(0.95, np.zeros((1, 3)))
+    hdh = HDPHMM(t_generator, e_generator, h)
+    return hdh

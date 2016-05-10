@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats
 
 from util import check_marginals, align_sequences
-from util import basic_hmm, cyclic_hmm, cyclic_hmm_dirichlet
+from util import basic_hmm, cyclic_hmm, cyclic_hmm_dirichlet, cyclic_hmm_hdp
 
 def test_sample_states_exact(n_samples=1000):
     h = basic_hmm()
@@ -57,4 +57,23 @@ def test_cyclic_hmm_dir_slice_convergence():
     for _ in range(10):
         print(align_sequences(states, h.states))
         dh.sample_gibbs(50, sample_states_method=h.sample_states_slice)
+    assert align_sequences(states, h.states) > 700
+
+def test_cyclic_hmm_hdp_slice_stationary():
+    hdh = cyclic_hmm_hdp()
+    h = hdh.hmm
+    states = np.array(h.states)
+    hdh.initialize_with_states(h.states)
+    for _ in range(100):
+        print(align_sequences(states, h.states))
+        hdh.sample_gibbs(1)
+
+def test_cyclic_hmm_hdp_slice_convergence():
+    hdh = cyclic_hmm_hdp()
+    h = hdh.hmm
+    states = np.array(h.states)
+    hdh.initialize_with_states(np.random.choice(range(1, 21), size=states.size))
+    for _ in range(10):
+        print(align_sequences(states, h.states))
+        hdh.sample_gibbs(50)
     assert align_sequences(states, h.states) > 700
