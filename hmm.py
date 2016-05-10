@@ -163,21 +163,19 @@ class LearningHMM(object):
         self.hmm.e = self.e_generator.params
 
 class DirMultMatrix(object):
-    def __init__(self, alpha, counts=None, params=None):
+    def __init__(self, alpha, params, counts=None):
         """A matrix with a Dirichlet prior on each row.
 
-        alpha: K-by-M matrix of Dirichlet hyperparameters (pseudocounts)
-        counts: K-by-M matrix of observed counts
+        alpha: length-K vector of Dirichlet hyperparameters (pseudocounts)
         params: K-by-M matrix of sampled parameters
+        counts: K-by-M matrix of observed counts
 
         """
         self.alpha = alpha
-        if counts is None:
-            counts = np.zeros_like(alpha)
-        self.counts = counts
-        if params is None:
-            params = np.empty_like(alpha)
         self.params = params
+        if counts is None:
+            counts = np.zeros_like(params)
+        self.counts = counts
 
     def sample_params(self):
         self.params = np.apply_along_axis(
