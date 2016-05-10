@@ -156,13 +156,6 @@ class LearningHMM(object):
             self.hmm.sample_states_exact()
         self.hmm.add_counts(self.t_generator, self.e_generator)
 
-    def sample_states_slice(self):
-        t_counts = self.t_generator.counts
-        e_counts = self.e_generator.counts
-        self.hmm.add_counts(t_counts, e_counts, -1)
-        self.hmm.sample_states_slice()
-        self.hmm.add_counts(t_counts, e_counts)
-
     def sample_params(self):
         self.t_generator.sample_params()
         self.e_generator.sample_params()
